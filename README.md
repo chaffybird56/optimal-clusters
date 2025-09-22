@@ -6,154 +6,155 @@ Adaptive Color Quantization for Image Compression
 ---
 
 ## 📸 Quick look — inputs & outputs (placeholders)
-
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/5a3ac8fa-85d0-4339-8e5f-ba81ec9f65cb" width="753" height="1180" alt="Original image – cat"/>
-  <br/>
-  <sub><b>Fig 1.</sub>
-
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/6253f4ad-f406-47f0-873c-68951fdee499" width="753" height="1180" alt="Original image – car"/>
-  <br/>
-  <sub><b>Fig 2.</sub>
-</div>
-
+<table>
+  <tr>
+    <td>
+      <img src="https://github.com/user-attachments/assets/5a3ac8fa-85d0-4339-8e5f-ba81ec9f65cb" width="550" height="850" alt="Original image – cat">
+      <br>
+      <p align="center"><b>Fig 1.</b></p>
+    </td>
+    <td>
+      <img src="https://github.com/user-attachments/assets/6253f4ad-f406-47f0-873c-68951fdee499" width="525" height="770" alt="Original image – car">
+      <br>
+      <p align="center"><b>Fig 2.</b></p>
+    </td>
+  </tr>
+</table>
 
 ---
 
-🧠 Plain‑English idea
+## 🧠 Plain-English idea
 
-An image is a grid of pixels; each pixel has an RGB color like a point in 3‑D space. k‑means groups similar colors together into k clusters. After clustering, every pixel is painted with its cluster’s average color. The result uses only k colors, which:
+An image is a grid of pixels; each pixel has an RGB color like a point in 3-D space. **k-means** groups similar colors into **k clusters**. After clustering, every pixel is repainted with its cluster’s mean color. Using only **k** colors:
 
-Segments the image into coherent color regions (sky vs. leaves vs. fur), and
+* **Segments** the image into coherent color regions (sky vs. leaves vs. fur), and
+* **Compresses** the palette (fewer distinct colors → smaller representation).
 
-Compresses the color palette (fewer distinct colors → smaller representation).
+This is handy for posterized aesthetics, previews, and as a preprocessing step for other vision tasks.
 
-This is useful when a simpler, flatter color representation is enough (posters, icons, previews) or as a preprocessing step for other vision tasks.
+---
 
-✍️ What the code does (at a glance)
+## ✍️ What the code does (at a glance)
 
-Loads two images (e.g., cat.jpg, car.jpg).
+* Loads two images (e.g., `cat.jpg`, `car.jpg`).
+* Flattens each image to a matrix `X` of shape `(num_pixels, 3)` with one RGB row per pixel.
+* Runs **k-means** for multiple `k` values: `[2, 3, 10, 20, 40]`.
+* For each `k`, tries three initializations: **random** (twice) and **spaced** (k-means++-style).
+* Reconstructs the compressed image and saves it to `results/…`.
+* Computes **MSE** between original and reconstruction and logs it to `results.txt`.
 
-Flattens each image to a matrix X of shape (num_pixels, 3) with one RGB row per pixel.
+> Code landmarks: `initialize_centers_random`, `initialize_centers_spaced`, `kmeans`, `reconstruct_image`, `compute_mse`.
 
-Runs k‑means for multiple k values: [2, 3, 10, 20, 40].
+---
 
-For each k, runs three initializations: random (twice) and spaced (k‑means++‑style).
+## 🔬 From intuition to math
 
-Reconstructs the compressed image and saves it to results/….
+### Objective (what k-means minimizes)
 
-Computes MSE between original and reconstruction and logs it in results.txt.
+Given data points (pixel colors) $x \in \mathbb{R}^3$, choose $k$ centroids $\{\mu_i\}_{i=1}^k$ and assignments to minimize the within-cluster sum of squares (**WCSS**):
 
-Key functions (see code): initialize_centers_random, initialize_centers_spaced (k‑means++‑inspired), kmeans, reconstruct_image, compute_mse.
+$$
+\mathrm{WCSS} \;=\; \sum_{i=1}^{k} \; \sum_{x\in C_i} \,\lVert x - \mu_i \rVert^2 .
+$$
 
-🔬 From intuition to math
+Here $C_i$ is the set of points assigned to centroid $i$, and $\lVert\cdot\rVert$ is the Euclidean norm. Smaller WCSS means tighter clusters.
 
-Objective (what k‑means is trying to minimize)
+### The two steps that repeat (Lloyd’s algorithm)
 
-Given data points (here, pixel colors) , choose  centroids  and assignments so that points are close to their cluster’s centroid. The within‑cluster sum of squares (WCSS) is
+1. **Assign:**
 
+$$
+x \;\mapsto\; \arg\min_i \; \lVert x - \mu_i \rVert^2 .
+$$
 
+2. **Update:**
 
-where  is the set of points assigned to cluster , and  is the Euclidean norm. Smaller WCSS means tighter, more coherent clusters.
+$$
+\mu_i \;\leftarrow\; \frac{1}{|C_i|}\sum_{x\in C_i} x .
+$$
 
-The two steps that repeat (Lloyd’s algorithm)
+Repeat until centroids barely move (or a max-iteration cap). Each cycle never increases WCSS, so it converges to a local minimum.
 
-Assign each pixel to its nearest centroid:
+### Why initialization matters
 
+k-means can land in different local minima depending on the starting centroids.
 
+* **Random init:** pick $k$ random pixels.
+* **Spaced init (k-means++-style):** pick the first pixel randomly; pick the rest with probability proportional to squared distance from the nearest chosen center. This spreads seeds, typically improving quality and speed.
 
-Update each centroid to the mean of its assigned points:
+---
 
+## 🧩 Reconstructing and evaluating the image
 
+After clustering, reconstruct by replacing each pixel with its cluster mean color:
 
-Repeat until centroids stop moving (or a max number of iterations is reached). Each repeat never increases WCSS, so the process converges to a local minimum.
+$$
+\text{recon}(p) \;=\; \mu_{\text{label}(p)} \in \mathbb{R}^3 .
+$$
 
-Why initialization matters
+Measure fidelity with **Mean Squared Error (MSE)** between the original $I$ and reconstruction $\hat I$:
 
-k‑means can settle in different local minima depending on the starting centroids.
+$$
+\mathrm{MSE} \;=\; \frac{1}{N}\sum_{u=1}^{H}\sum_{v=1}^{W}\sum_{c\in\{R,G,B\}} \big(I_{u,v,c}-\hat I_{u,v,c}\big)^2,\quad N=H\cdot W\cdot 3.
+$$
 
-Random init: pick  random pixels.
+Lower MSE ⇒ closer match (though perception doesn’t always track MSE perfectly).
 
-Spaced init (k‑means++‑style): choose the first pixel randomly; then probabilistically pick new centroids far from those already chosen (proportional to squared distance). This spreads initial centers and often speeds convergence / improves quality.
+---
 
-🧩 Reconstructing and evaluating the image
+## 🛠️ Implementation details (how it maps to code)
 
-After clustering, rebuild the image by replacing each pixel by its cluster mean color:
+* **Data prep:** `Image.open(...).convert('RGB')` → `np.array(...)` → reshape to `(num_pixels, 3)`.
+* **Init strategies:**
 
+  * `initialize_centers_random(X, k)`: uniform sample of `k` pixels.
+  * `initialize_centers_spaced(X, k)`: first center random; subsequent centers sampled with probability ∝ distance² to the nearest chosen center.
+* **Main loop:** `kmeans(X, k, init_strategy, max_iters=100)` repeats assign/update until convergence.
+* **Outputs:** `reconstruct_image(...)` saves PNGs; `compute_mse(...)` appends numbers to `results.txt`.
+* **Speed:** vectorized NumPy for distance and assignment.
 
+> Outputs live under `results/image_1/` and `results/image_2/` (one PNG per `(k, init)` plus a `results.txt` summary).
 
-To quantify fidelity, compute Mean Squared Error (MSE) between the original image  and the reconstruction :
+---
 
+## 📈 What to expect as k changes
 
+* **Small k (2–3):** strong “posterization”; big flat regions; higher MSE.
+* **Moderate k (10–20):** preserves structure and many textures; MSE drops notably.
+* **Large k (40+):** very close to original; diminishing returns vs. complexity.
 
-where . Lower MSE  better reconstruction (but human perception doesn’t always align perfectly with MSE).
+Initialization influences both quality and runtime. Spaced seeding often converges faster and may reduce MSE, but the best choice depends on the image.
 
-🛠️ Implementation details (mapping to the code)
+---
 
-Data prep: Image.open(...).convert('RGB') → np.array(...) → reshape to (num_pixels, 3).
+## 🤔 Common questions (brief)
 
-Init strategies:
+* **Why RGB space?** Simple and effective for color-driven segmentation; Lab/HSV can be better perceptually.
+* **Does k-means find the global best?** No, it finds a local optimum—hence multiple restarts.
+* **Is MSE ideal?** It’s standard and fast, but SSIM may align better with human perception.
 
-initialize_centers_random(X, k): uniform random sample of k pixels.
+---
 
-initialize_centers_spaced(X, k): first center random; subsequent centers sampled with probability  where  is distance to the nearest chosen center (k‑means++ logic).
+## 🧭 Extensions
 
-Main loop: kmeans(X, k, init_strategy, max_iters=100) repeatedly assigns labels and recomputes centroids until convergence.
+* Implement canonical **k-means++** seeding (this code already mirrors the idea).
+* Try **Lab** space for more perceptual grouping.
+* Add spatial features $(x,y)$ to discourage speckle.
+* Auto-choose $k$ via the elbow method or information criteria.
 
-Outputs: reconstruct_image(labels, centers, image_shape) → save PNG; compute_mse(...) → log to results.txt along with iteration count.
+---
 
-Batching: the code uses vectorized NumPy operations for distances and assignment for speed.
+## 🗂️ Repository pointers
 
-Tip: results are written under results/image_1/ and results/image_2/, one PNG per (k, init) plus a results.txt summary.
+* `SL4_A3 (2).py` — full implementation (init strategies, loop, reconstruction, MSE logging).
+* `SL4_A3_Report.pdf` — write-up with theory, experiments, discussion.
 
-📈 What to expect as k changes
+---
 
-Small k (e.g., 2–3): strong “posterization” (large, flat color regions). Compression is high; detail is lost. MSE is usually higher.
+## License
 
-Moderate k (e.g., 10–20): preserves large structures and many textures; good trade‑off. MSE drops notably.
+MIT — see `LICENSE`.
 
-Large k (e.g., 40+): close to the original; diminishing returns in MSE vs. added complexity.
-
-Initialization impacts quality/time mildly. Spaced init often converges in fewer iterations and can reduce MSE, but the best choice depends on image content.
-
-📌 Results gallery (placeholders)
-
-Use a few representative reconstructions to keep the README readable. Suggested layout:
-
-Image 1 (cat)
-
-Image 2 (car)
-
-Swap in your uploaded images from results/.... Keep widths modest (≤500) so the page stays readable.
-
-🤔 Common questions (brief)
-
-Why RGB space? It’s simple and works well for color‑driven segmentation. Alternatives like Lab/HSV can sometimes cluster perceptually better.
-
-Will k‑means always find the best clustering? No—only a local optimum. That’s why initialization (and multiple restarts) can help.
-
-Is MSE the best metric? It’s convenient and standard, but perceptual metrics (SSIM) may correlate better with human judgment.
-
-🧭 Extensions
-
-k‑means++ exactly: use the canonical seeding (this code already mirrors the idea).
-
-Color spaces: run in Lab for perceptual uniformity.
-
-Spatial regularization: add pixel position () to the feature vector to discourage speckle.
-
-Auto‑choose k: elbow method or information criteria.
-
-🗂️ Repository pointers
-
-SL4_A3 (2).py — full implementation (init strategies, k‑means loop, reconstruction, MSE logging).
-
-SL4_A3_Report.pdf — write‑up with theory, experiments, and discussion.
-
-License
-
-MIT — see LICENSE.
-
+---
 
 
