@@ -8,10 +8,9 @@ Adaptive Color Quantization for Image Compression
 ## 📸 Quick look — inputs & outputs (placeholders)
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/428d9ed7-6912-46ca-a0d8-4ae89cf2202d" width="753" height="1180" alt="Original image – cat"/>
+  <img src="https://github.com/user-attachments/assets/5a3ac8fa-85d0-4339-8e5f-ba81ec9f65cb" width="753" height="1180" alt="Original image – cat"/>
   <br/>
   <sub><b>Fig 1.</sub>
-</div>
 
 <div align="center">
   <img src="https://github.com/user-attachments/assets/6253f4ad-f406-47f0-873c-68951fdee499" width="753" height="1180" alt="Original image – car"/>
