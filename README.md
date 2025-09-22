@@ -18,7 +18,6 @@ Adaptive Color Quantization for Image Compression
   <sub><b>Fig 2.</sub>
 </div>
 
-> Replace the three URLs above with your GitHub user‑attachment links (drag‑and‑drop images into the README to get unique URLs). Use more examples later in the **Results** section if desired.
 
 ---
 
