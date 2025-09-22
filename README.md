@@ -144,13 +144,6 @@ Initialization influences both quality and runtime. Spaced seeding often converg
 
 ---
 
-## 🗂️ Repository pointers
-
-* `SL4_A3 (2).py` — full implementation (init strategies, loop, reconstruction, MSE logging).
-* `SL4_A3_Report.pdf` — write-up with theory, experiments, discussion.
-
----
-
 ## License
 
 MIT — see `LICENSE`.
