@@ -168,7 +168,7 @@ for idx, image in enumerate(images):
 
             # Ensure different random initializations
             if init_strategy.startswith('random'):
-                np.random.seed()  # Reset seed to system time for randomness ( I did not include my seed so its random every time because the assignment instructions did not indicate to do so)
+                np.random.seed()  # System-time seed; assignment did not require a fixed seed for random restarts.
                 init_type = 'random'
             else:
                 init_type = init_strategy  # 'spaced'
